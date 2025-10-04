@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="si">
+<head>
+  <meta charset="utf-8" />
+  <title>Attendance Scanner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <!-- QR/Barcode Scanner Library -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.7/minified/html5-qrcode.min.js"></script>
+
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; background: #f4f4f9; }
+    h2 { margin-top: 10px; }
+    #reader { width: 320px; margin: auto; }
+    table { margin: 20px auto; border-collapse: collapse; width: 95%; background: white; }
+    table, th, td { border: 1px solid #444; }
+    th, td { padding: 8px; text-align: center; }
+    th { background: #007bff; color: white; }
+    .success { color: green; font-weight: bold; margin-top: 10px; }
+    button { margin: 10px; padding: 8px 15px; border: none; background: #28a745; color: #fff; border-radius: 5px; cursor: pointer; }
+    button:hover { background: #218838; }
+  </style>
+</head>
+<body>
+
+  <h2>👨‍💼 සේවක පැමිණීම / පිටවීම</h2>
+  <div id="reader"></div>
+  <p id="result" class="success"></p>
+
+  <h3>📋 Attendance Log (මාසික)</h3>
+  <button onclick="exportCSV()">⬇ Export CSV</button>
+  <table id="attendanceTable">
+    <thead>
+      <tr>
+        <th>දිනය</th>
+        <th>සේවක අංකය</th>
+        <th>ඇතුල් වීමේ වේලාව</th>
+        <th>පිටවීමේ වේලාව</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    function getDate() {
+      const now = new Date();
+      return now.toLocaleDateString(); // e.g. 2025/10/03
+    }
+
+    function getTime() {
+      const now = new Date();
+      return now.toLocaleTimeString(); // e.g. 18:45:23
+    }
+
+    // Load from localStorage
+    let attendanceLog = JSON.parse(localStorage.getItem("attendanceLog")) || {};
+
+    function renderTable() {
+      let tbody = document.querySelector("#attendanceTable tbody");
+      tbody.innerHTML = "";
+      for (let empId in attendanceLog) {
+        let record = attendanceLog[empId];
+        let row = tbody.insertRow();
+        row.insertCell(0).innerHTML = record.date;
+        row.insertCell(1).innerHTML = empId;
+        row.insertCell(2).innerHTML = record.in || "";
+        row.insertCell(3).innerHTML = record.out || "";
+      }
+    }
+
+    function saveAttendance(empId) {
+      let today = getDate();
+
+      if (!attendanceLog[empId]) {
+        // first scan -> entry
+        attendanceLog[empId] = { date: today, in: getTime(), out: "" };
+        document.getElementById("result").innerText = "✔ " + empId + " ඇතුල් වීම සටහන් විය";
+      } else if (!attendanceLog[empId].out) {
+        // second scan -> exit
+        attendanceLog[empId].out = getTime();
+        document.getElementById("result").innerText = "↪ " + empId + " පිටවීම සටහන් විය";
+      } else {
+        document.getElementById("result").innerText = empId + " - දැනටමත් සම්පූර්ණයි!";
+      }
+
+      // save to localStorage
+      localStorage.setItem("attendanceLog", JSON.stringify(attendanceLog));
+      renderTable();
+    }
+
+    function onScanSuccess(decodedText, decodedResult) {
+      saveAttendance(decodedText);
+    }
+
+    function exportCSV() {
+      let csv = "දිනය,සේවක අංකය,ඇතුල් වීම,පිටවීම\n";
+      for (let empId in attendanceLog) {
+        let r = attendanceLog[empId];
+        csv += `${r.date},${empId},${r.in},${r.out}\n`;
+      }
+      let blob = new Blob([csv], { type: 'text/csv' });
+      let url = window.URL.createObjectURL(blob);
+      let a = document.createElement("a");
+      a.href = url;
+      a.download = "attendance_log.csv";
+      a.click();
+    }
+
+    // Init scanner
+    let html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+    html5QrcodeScanner.render(onScanSuccess);
+
+    // Render saved data on page load
+    renderTable();
+  </script>
+
+</body>
+</html>
