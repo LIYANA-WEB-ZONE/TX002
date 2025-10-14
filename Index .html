@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>සේවක පැමිණීම / පිටවීම</title>
+  <style>
+    body {
+      font-family: "Noto Sans Sinhala", sans-serif;
+      background: linear-gradient(to bottom, #eef3ff, #e0e7ff);
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      background: #ffffff;
+      padding: 25px;
+      border-radius: 18px;
+      box-shadow: 0 6px 25px rgba(0, 0, 0, 0.1);
+      width: 90%;
+      max-width: 520px;
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    h1 {
+      color: #2563eb;
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      margin: 10px 0 5px;
+      font-weight: 600;
+      text-align: left;
+      margin-left: 8%;
+    }
+
+    input {
+      width: 85%;
+      padding: 8px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      font-size: 15px;
+      margin-bottom: 8px;
+    }
+
+    input[readonly] {
+      background-color: #f8fafc;
+    }
+
+    .buttons {
+      margin-top: 10px;
+      display: flex;
+      justify-content: space-around;
+    }
+
+    button {
+      width: 40%;
+      padding: 10px;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: bold;
+      color: white;
+      cursor: pointer;
+    }
+
+    #checkInBtn {
+      background-color: #16a34a;
+    }
+
+    #checkOutBtn {
+      background-color: #dc2626;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 25px;
+      font-size: 14px;
+    }
+
+    th, td {
+      border: 1px solid #e2e8f0;
+      padding: 6px;
+      text-align: center;
+    }
+
+    th {
+      background-color: #2563eb;
+      color: white;
+    }
+
+    tr:nth-child(even) {
+      background-color: #f1f5f9;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>සේවක පැමිණීම / පිටවීම</h1>
+
+    <label for="empId">සේවක ID</label>
+    <input type="text" id="empId" placeholder="උදා: 1001" />
+
+    <label for="empName">නම</label>
+    <input type="text" id="empName" placeholder="නම ස්වයංක්‍රීයව පිරේ" readonly />
+
+    <div class="buttons">
+      <button id="checkInBtn">පැමිණීම</button>
+      <button id="checkOutBtn">පිටවීම</button>
+    </div>
+  </div>
+
+  <div class="container" style="margin-bottom: 40px;">
+    <h1>අවසන් සටහන්</h1>
+    <table id="recordTable">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>නම</th>
+          <th>වර්ගය</th>
+          <th>දිනය / වේලාව</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyA6b6QHKecWFGYEZj5Nt73gKGolYCdPYvs",
+      authDomain: "attendance-system-01-7d320.firebaseapp.com",
+      projectId: "attendance-system-01-7d320",
+      storageBucket: "attendance-system-01-7d320.firebasestorage.app",
+      messagingSenderId: "73345505045",
+      appId: "1:73345505045:web:8676a0433cee84f306fb1c",
+      measurementId: "G-9Q69Q9EZ9Q"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const employeeData = {
+      "1001": "සම්පත් පෙරේරා",
+      "1002": "නදීෂා විජේසිංහ",
+      "1003": "චමින්ද ජයවර්ධන",
+      "1004": "අමිල සෙනෙවිරත්න"
+    };
+
+    const empId = document.getElementById("empId");
+    const empName = document.getElementById("empName");
+    const checkInBtn = document.getElementById("checkInBtn");
+    const checkOutBtn = document.getElementById("checkOutBtn");
+    const recordTable = document.querySelector("#recordTable tbody");
+
+    empId.addEventListener("input", () => {
+      const id = empId.value.trim();
+      empName.value = employeeData[id] || "";
+    });
+
+    async function saveRecord(id, name, type, time) {
+      try {
+        await addDoc(collection(db, "attendanceRecords"), { id, name, type, time });
+        console.log("✅ Record added");
+      } catch (e) {
+        console.error("❌ Error adding record: ", e);
+      }
+    }
+
+    async function loadRecords() {
+      const q = query(collection(db, "attendanceRecords"), orderBy("time", "desc"), limit(5));
+      const querySnapshot = await getDocs(q);
+      recordTable.innerHTML = "";
+      querySnapshot.forEach((doc) => {
+        const r = doc.data();
+        const row = recordTable.insertRow();
+        row.insertCell(0).textContent = r.id;
+        row.insertCell(1).textContent = r.name;
+        row.insertCell(2).textContent = r.type;
+        row.insertCell(3).textContent = r.time;
+      });
+    }
+
+    async function handleCheck(type) {
+      const id = empId.value.trim();
+      const name = empName.value.trim();
+      if (!id || !name) return alert("කරුණාකර සේවක ID එක ඇතුලත් කරන්න.");
+      const time = new Date().toLocaleString();
+      await saveRecord(id, name, type, time);
+      await loadRecords();
+      empId.value = "";
+      empName.value = "";
+    }
+
+    checkInBtn.addEventListener("click", () => handleCheck("පැමිණීම"));
+    checkOutBtn.addEventListener("click", () => handleCheck("පිටවීම"));
+
+    loadRecords();
+  </script>
+
+</body>
+</html>
